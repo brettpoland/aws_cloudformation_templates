@@ -35,7 +35,7 @@ Resources:
       EnableDnsHostnames: true
       Tags:
         - Key: Name
-          Value: VPC-BasicNetworking
+          Value: VPC-3Public3Private
 
   InternetGateway:
     Type: AWS::EC2::InternetGateway

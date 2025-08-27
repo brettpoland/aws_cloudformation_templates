@@ -8,11 +8,21 @@ on:
         type: choice
         required: true
         options:
-          - VPC-BasicNetworking
+          - VPC-3Public3Private
+          - EC2-Ansible
+      environment:
+        description: 'Deployment environment'
+        type: choice
+        required: true
+        options:
+          - general
+          - production
+          - development
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
     permissions:
       id-token: write
       contents: read

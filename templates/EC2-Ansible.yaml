@@ -1,0 +1,81 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Deploy a free-tier EC2 instance in a private subnet and run Ansible to create a hello world file.
+
+Parameters:
+  VpcId:
+    Type: String
+    Description: ID of an existing VPC
+  PrivateSubnetId:
+    Type: String
+    Description: Subnet ID for the private subnet
+  KeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: Optional key pair for SSH access
+    Default: ''
+
+Resources:
+  InstanceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow SSH within VPC
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+
+  EC2Role:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref EC2Role
+
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.micro
+      IamInstanceProfile: !Ref InstanceProfile
+      SubnetId: !Ref PrivateSubnetId
+      SecurityGroupIds:
+        - !Ref InstanceSecurityGroup
+      ImageId: '{{resolve:ssm:/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2}}'
+      KeyName: !If [HasKey, !Ref KeyName, !Ref 'AWS::NoValue']
+      UserData:
+        Fn::Base64: |
+          #!/bin/bash
+          yum update -y
+          yum install -y python3
+          pip3 install ansible
+          cat <<'PLAY' > /tmp/playbook.yml
+          ---
+          - hosts: localhost
+            gather_facts: false
+            tasks:
+              - copy:
+                  content: 'hello world'
+                  dest: /tmp/ansible.test
+          PLAY
+          ansible-playbook /tmp/playbook.yml
+
+Conditions:
+  HasKey: !Not [!Equals [!Ref KeyName, '']]
+
+Outputs:
+  InstanceId:
+    Value: !Ref EC2Instance
+    Description: ID of the created EC2 instance
