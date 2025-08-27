@@ -1,10 +1,11 @@
-name: Deploy CloudFormation
+---
+name: Manage CloudFormation
 
 on:
   workflow_dispatch:
     inputs:
       template:
-        description: 'Template to deploy'
+        description: 'Template to deploy or delete'
         type: choice
         required: true
         options:
@@ -18,6 +19,13 @@ on:
           - general
           - production
           - development
+      action:
+        description: 'Action to perform'
+        type: choice
+        required: true
+        options:
+          - deploy
+          - delete
 
 jobs:
   deploy:
@@ -51,9 +59,16 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Deploy CloudFormation stack
+        if: ${{ github.event.inputs.action == 'deploy' }}
         uses: aws-actions/aws-cloudformation-github-deploy@v1
         with:
           name: ${{ github.event.inputs.template }}
           template: templates/${{ github.event.inputs.template }}.yaml
           capabilities: CAPABILITY_NAMED_IAM
           no-fail-on-empty-changeset: '1'
+
+      - name: Delete CloudFormation stack
+        if: ${{ github.event.inputs.action == 'delete' }}
+        run: |
+          aws cloudformation delete-stack --stack-name ${{ github.event.inputs.template }}
+          aws cloudformation wait stack-delete-complete --stack-name ${{ github.event.inputs.template }}
