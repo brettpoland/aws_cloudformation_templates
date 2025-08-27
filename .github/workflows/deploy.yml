@@ -11,6 +11,7 @@ on:
         options:
           - VPC-3Public3Private
           - EC2-Ansible
+          - ALL
       environment:
         description: 'Deployment environment'
         type: choice
@@ -68,7 +69,16 @@ jobs:
           no-fail-on-empty-changeset: '1'
 
       - name: Delete CloudFormation stack
-        if: ${{ github.event.inputs.action == 'delete' }}
+        if: ${{ github.event.inputs.action == 'delete' && github.event.inputs.template != 'ALL' }}
         run: |
           aws cloudformation delete-stack --stack-name ${{ github.event.inputs.template }}
           aws cloudformation wait stack-delete-complete --stack-name ${{ github.event.inputs.template }}
+
+      - name: Delete all CloudFormation stacks
+        if: ${{ github.event.inputs.action == 'delete' && github.event.inputs.template == 'ALL' }}
+        run: |
+          for template_file in templates/*.yaml; do
+            stack_name=$(basename "$template_file" .yaml)
+            aws cloudformation delete-stack --stack-name "$stack_name"
+            aws cloudformation wait stack-delete-complete --stack-name "$stack_name"
+          done
