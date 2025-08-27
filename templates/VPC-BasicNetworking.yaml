@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: >
-  Basic VPC with three public and three private subnets, a NAT instance,
+  Basic VPC with three public and three private subnets, a NAT gateway,
   and routing so private subnets can access the internet through the NAT.
 
 Parameters:
@@ -25,10 +25,6 @@ Parameters:
   PrivateSubnet3CIDR:
     Type: String
     Default: 10.0.102.0/24
-  NatAmi:
-    Description: SSM parameter path for the latest Amazon Linux 2 AMI
-    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
-    Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2
 
 Resources:
   VPC:
@@ -68,43 +64,26 @@ Resources:
     Properties:
       VpcId: !Ref VPC
 
-  NatSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: Allow NAT traffic
-      VpcId: !Ref VPC
-      SecurityGroupIngress:
-        - IpProtocol: -1
-          CidrIp: 0.0.0.0/0
-      SecurityGroupEgress:
-        - IpProtocol: -1
-          CidrIp: 0.0.0.0/0
-
-  NatInstance:
-    Type: AWS::EC2::Instance
-    Properties:
-      InstanceType: t3.micro
-      SubnetId: !Ref PublicSubnet1
-      SourceDestCheck: false
-      ImageId: !Ref NatAmi
-      SecurityGroupIds:
-        - !Ref NatSecurityGroup
-      Tags:
-        - Key: Name
-          Value: NatInstance
-
   NatEIP:
     Type: AWS::EC2::EIP
     Properties:
       Domain: vpc
-      InstanceId: !Ref NatInstance
+
+  NatGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      SubnetId: !Ref PublicSubnet1
+      AllocationId: !GetAtt NatEIP.AllocationId
+      Tags:
+        - Key: Name
+          Value: NatGateway
 
   PrivateDefaultRoute:
     Type: AWS::EC2::Route
     Properties:
       RouteTableId: !Ref PrivateRouteTable
       DestinationCidrBlock: 0.0.0.0/0
-      InstanceId: !Ref NatInstance
+      NatGatewayId: !Ref NatGateway
 
   PublicSubnet1:
     Type: AWS::EC2::Subnet
