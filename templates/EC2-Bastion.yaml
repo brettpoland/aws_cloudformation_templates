@@ -1,0 +1,62 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Launch an Amazon Linux 2 bastion host in a public subnet for SSH access to private resources.
+
+Parameters:
+  VpcId:
+    Type: String
+    Description: ID of an existing VPC
+  PublicSubnetId:
+    Type: String
+    Description: Subnet ID for the public subnet
+  KeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: Name of an existing EC2 KeyPair to enable SSH access
+  AllowedIP:
+    Type: String
+    Default: 0.0.0.0/0
+    Description: CIDR range permitted to SSH to the bastion host
+
+Resources:
+  BastionSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Enable SSH access to bastion host
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref AllowedIP
+
+  BastionEIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
+  BastionInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.micro
+      SubnetId: !Ref PublicSubnetId
+      ImageId: '{{resolve:ssm:/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2}}'
+      KeyName: !Ref KeyName
+      SecurityGroupIds:
+        - !Ref BastionSecurityGroup
+      Tags:
+        - Key: Name
+          Value: BastionHost
+
+  BastionEIPAssociation:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      InstanceId: !Ref BastionInstance
+      AllocationId: !GetAtt BastionEIP.AllocationId
+
+Outputs:
+  InstanceId:
+    Description: ID of the bastion host
+    Value: !Ref BastionInstance
+  PublicIP:
+    Description: Elastic IP address of the bastion host
+    Value: !Ref BastionEIP
