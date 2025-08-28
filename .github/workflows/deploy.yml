@@ -11,6 +11,7 @@ on:
         options:
           - VPC-3Public3Private
           - EC2-Ansible
+          - EC2-Bastion
           - ALL
       environment:
         description: 'Deployment environment'
