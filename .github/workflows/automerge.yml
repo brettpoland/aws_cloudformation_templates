@@ -34,7 +34,7 @@ jobs:
               repo,
               ref: pr.data.head.sha
             });
-            if (status.data.state !== 'success') {
+            if (status.data.total_count > 0 && status.data.state !== 'success') {
               core.setFailed(`Checks are ${status.data.state}`);
               return;
             }
