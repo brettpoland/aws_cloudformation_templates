@@ -21,7 +21,7 @@ jobs:
           script: |
             const { owner, repo } = context.repo;
             const pull_number = context.payload.pull_request.number;
-            const pr = await github.pulls.get({ owner, repo, pull_number });
+            const pr = await github.rest.pulls.get({ owner, repo, pull_number });
             if (pr.data.mergeable_state !== 'clean' || pr.data.draft) {
               core.setFailed(
                 `Not mergeable: state=${pr.data.mergeable_state}, ` +
@@ -29,7 +29,7 @@ jobs:
               );
               return;
             }
-            const status = await github.repos.getCombinedStatusForRef({
+            const status = await github.rest.repos.getCombinedStatusForRef({
               owner,
               repo,
               ref: pr.data.head.sha
@@ -38,7 +38,7 @@ jobs:
               core.setFailed(`Checks are ${status.data.state}`);
               return;
             }
-            await github.pulls.merge({
+            await github.rest.pulls.merge({
               owner,
               repo,
               pull_number,
